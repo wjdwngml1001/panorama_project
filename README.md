@@ -37,13 +37,30 @@ cd panorama_project
 python -m venv venv
 venv\Scripts\activate
 ```
-예시 실행 명령어
+예시 실행 명령어(가상 환경 venv 위에서 실행할 것.)
 ```bash
-(venv) python main.py --input "sampleset1" --pattern "testimg*.jpg" --out "results/result1.jpg" --debug_matches_dir "results/matches_set1"
+python main.py --input "sampleset1" --pattern "testimg*.jpg" --out "results/result1.jpg" --debug_matches_dir "results/matches_set1"
 ```
 ```bash
-(venv) python main.py --input "sampleset3/sampleset3" --pattern "testimg*.PNG" --out "results/result3.jpg" --debug_matches_dir "results/matches_set3"
+﻿python main.py --input "sampleset2/sample2" --pattern "1104*.png" --out results/result2_1.jpg --debug_matches_dir "results/matches_set2_1"
+
 ```
+```bash
+﻿python main.py --input "sampleset2/sample2" --pattern "1108001*.png" --out results/result2_2.jpg --debug_matches_dir "results/matches_set2_2"
+```
+```bash
+﻿python main.py --input "sampleset2/sample2" --pattern "1108001*.png" --out results/result2_3.jpg --debug_matches_dir "results/matches_set2_3"
+```
+```bash
+﻿python main.py --input "sampleset2/sample2" --pattern "1108001*.png" --out results/result2_4.jpg --debug_matches_dir "results/matches_set2_4"
+```
+```bash
+﻿python main.py --input "sampleset2/sample2" --pattern "1108001*.png" --out results/result2_5.jpg --debug_matches_dir "results/matches_set2_5"
+```
+```bash
+python main.py --input "sampleset3/sampleset3" --pattern "testimg*.PNG" --out "results/result3.jpg" --debug_matches_dir "results/matches_set3"
+```
+
 ###실행 옵션 설명
 
 - --input : 입력 이미지 폴더 경로
