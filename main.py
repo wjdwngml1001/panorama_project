@@ -8,11 +8,6 @@ from typing import List, Tuple, Optional
 import numpy as np
 import cv2
 
-
-# ============================================================
-# Utils (allowed: cv2 load/save, basic math, matrix ops)
-# ============================================================
-
 def clamp01(x: np.ndarray) -> np.ndarray:
     return np.clip(x, 0.0, 1.0)
 
@@ -36,11 +31,6 @@ def normalize_gray(gray: np.ndarray) -> np.ndarray:
     return ((gray - m) / s).astype(np.float32)
 
 def gray_hist_equalize(gray01: np.ndarray, nbins: int = 256) -> np.ndarray:
-    """
-    Simple histogram equalization (self-implemented).
-    Input: gray in [0,1] float32
-    Output: equalized gray in [0,1]
-    """
     g = np.clip(gray01, 0.0, 1.0)
     x = (g * (nbins - 1)).astype(np.int32)
     hist = np.bincount(x.reshape(-1), minlength=nbins).astype(np.float64)
@@ -83,12 +73,6 @@ def save_image_rgb(path: str, rgb_u8: np.ndarray) -> None:
         os.makedirs(out_dir, exist_ok=True)
     bgr = cv2.cvtColor(rgb_u8, cv2.COLOR_RGB2BGR)
     cv2.imwrite(path, bgr)
-
-
-# ============================================================
-# Minimal image processing (no cv2 filters; implement ourselves)
-# Speed: separable blur uses np.convolve (C-fast core)
-# ============================================================
 
 def gaussian_kernel1d(sigma: float, radius: Optional[int] = None) -> np.ndarray:
     if radius is None:
@@ -152,11 +136,6 @@ def harris_response(gray: np.ndarray, k: float = 0.04, sigma: float = 1.5) -> np
     return R.astype(np.float32)
 
 def nonmax_suppression_candidates(R: np.ndarray, radius: int = 8, thresh_rel: float = 0.01) -> np.ndarray:
-    """
-    Faster NMS:
-    - first collect candidates where R >= thr
-    - only check local maxima around candidates
-    """
     H, W = R.shape
     m = float(np.max(R))
     if not np.isfinite(m) or m <= 0:
@@ -291,11 +270,6 @@ def match_descriptors(descA: np.ndarray, descB: np.ndarray,
         out = out[:max_matches]
     return out
 
-
-# ============================================================
-# Homography (DLT + RANSAC)
-# ============================================================
-
 def normalize_points(pts_xy: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
     pts = pts_xy.astype(np.float64)
     c = np.mean(pts, axis=0)
@@ -398,16 +372,9 @@ def ransac_homography(pts_src: np.ndarray, pts_dst: np.ndarray,
         return best_H, best_inliers
     return H2, best_inliers
 
-
-# ============================================================
-# ✅ Affine fallback (RANSAC) : reduces "scattered panorama"
-# (lecture-level: affine model when homography unstable)
-# ============================================================
-
 def affine_from_3pts(src: np.ndarray, dst: np.ndarray) -> Optional[np.ndarray]:
     if src.shape[0] < 3:
         return None
-    # Solve [x y 1 0 0 0; 0 0 0 x y 1] * p = [u v]
     A = np.zeros((6, 6), dtype=np.float64)
     b = np.zeros((6,), dtype=np.float64)
     for i in range(3):
@@ -454,7 +421,6 @@ def ransac_affine(src: np.ndarray, dst: np.ndarray,
     if best_H is None or best_cnt < 8:
         return None, best_inl
 
-    # refine with least squares on inliers
     src_in = src[best_inl]
     dst_in = dst[best_inl]
     M = src_in.shape[0]
@@ -477,11 +443,6 @@ def ransac_affine(src: np.ndarray, dst: np.ndarray,
                    [0.0,  0.0,  1.0]], dtype=np.float64)
     return H2, best_inl
 
-
-# ============================================================
-# Match scaling
-# ============================================================
-
 def choose_match_scale(h: int, w: int, max_dim: int = 900) -> float:
     m = max(h, w)
     if m <= max_dim:
@@ -499,11 +460,6 @@ def scale_homography(H_small: np.ndarray, s_from: float, s_to: float) -> np.ndar
     if abs(H[2, 2]) > 1e-12:
         H = H / H[2, 2]
     return H.astype(np.float64)
-
-
-# ============================================================
-# Homography sanity
-# ============================================================
 
 def corners_xy(h: int, w: int) -> np.ndarray:
     return np.array([[0, 0],
@@ -590,11 +546,6 @@ def overlap_ratio_A_with_warpedB(H_B_to_A: np.ndarray, hA: int, wA: int, hB: int
     areaA = float((wA - 1) * (hA - 1) + 1e-12)
     return float(inter / areaA)
 
-
-# ============================================================
-# Inverse warping + feather blending
-# ============================================================
-
 def project_points(H: np.ndarray, pts_xy: np.ndarray) -> np.ndarray:
     pts = pts_xy.astype(np.float64)
     pts_h = np.concatenate([pts, np.ones((pts.shape[0], 1), dtype=np.float64)], axis=1)
@@ -616,7 +567,6 @@ def make_feather_weight(h: int, w: int, feather: float = 35.0, base: float = 0.1
     wgt = base + (1.0 - base) * ramp
     return wgt.astype(np.float32)
 
-# ✅ 안전화: nan/inf가 섞여 들어오면 floor/cast에서 warning + 이상좌표
 def _safe_xy(xs: np.ndarray, ys: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     finite = np.isfinite(xs) & np.isfinite(ys)
     xs_safe = np.nan_to_num(xs, nan=0.0, posinf=0.0, neginf=0.0).astype(np.float32, copy=False)
@@ -688,11 +638,6 @@ def bilinear_sample_gray(img: np.ndarray, xs: np.ndarray, ys: np.ndarray) -> Tup
 
     out = (Ia * wa + Ib * wb + Ic * wc + Id * wd).astype(np.float32)
     return out, inside
-
-
-# ============================================================
-# Debug visualization: draw matches WITHOUT cv2 drawing
-# ============================================================
 
 def put_pixel(img: np.ndarray, x: int, y: int, color: Tuple[int, int, int]):
     H, W = img.shape[:2]
@@ -776,11 +721,6 @@ def make_match_viz(imgA_rgb01: np.ndarray, imgB_rgb01: np.ndarray,
         draw_line(canvas, ax, ay, bx2, by, col_line)
 
     return canvas
-
-
-# ============================================================
-# Pairwise registration
-# ============================================================
 
 def estimate_pair_homography(imgA_rgb: np.ndarray, imgB_rgb: np.ndarray,
                              debug_dir: Optional[str] = None,
@@ -900,18 +840,7 @@ def translation_fallback_from_matches(ptsB: np.ndarray, ptsA: np.ndarray) -> np.
                   [0, 0, 1]], dtype=np.float64)
     return H
 
-
-# ============================================================
-# Drift correction (helps scattered cases)
-# ============================================================
-
 def apply_drift_correction(H_to_ref: List[np.ndarray], images_rgb: List[np.ndarray], verbose: bool = True) -> List[np.ndarray]:
-    """
-    Simple drift correction:
-    - compute transformed center points in ref frame
-    - fit y = a*x + b
-    - apply affine correction that removes slope
-    """
     n = len(images_rgb)
     if n < 3:
         return H_to_ref
@@ -951,10 +880,6 @@ def apply_drift_correction(H_to_ref: List[np.ndarray], images_rgb: List[np.ndarr
     return [C @ H for H in H_to_ref]
 
 def global_transform_sanity(H_to_ref: List[np.ndarray], images_rgb: List[np.ndarray], verbose: bool = True) -> List[np.ndarray]:
-    """
-    Prevent one image from flying far away (causes huge black canvas + pop-up).
-    If a transform is wildly large, replace it with neighbor translation-ish.
-    """
     n = len(images_rgb)
     if n < 2:
         return H_to_ref
@@ -979,7 +904,6 @@ def global_transform_sanity(H_to_ref: List[np.ndarray], images_rgb: List[np.ndar
             bad = (abs(dx) > 6.0*wref) or (abs(dy) > 6.0*href)
 
         if bad:
-            # replace with neighbor-based mild translation
             j = prev_good
             hj, wj = images_rgb[j].shape[:2]
             step = np.array([[1, 0, 0.9*wj*(i-j)],
@@ -992,11 +916,6 @@ def global_transform_sanity(H_to_ref: List[np.ndarray], images_rgb: List[np.ndar
             prev_good = i
 
     return out
-
-
-# ============================================================
-# Build global transforms
-# ============================================================
 
 def build_global_transforms(images_rgb: List[np.ndarray],
                             verbose: bool = True,
@@ -1044,7 +963,6 @@ def build_global_transforms(images_rgb: List[np.ndarray],
                 print(f"[pair {i}->{i+1}] inliers too small ({inl_cnt}) -> mark bad")
 
         if not ok:
-            # ✅ NEW: try affine fallback before translation
             if ptsB is not None and ptsA is not None and ptsB.shape[0] >= 18:
                 H_aff, inl_aff = ransac_affine(ptsB, ptsA, iters=900, thresh=4.5, seed=42)
                 if H_aff is not None and is_homography_reasonable(H_aff, hA, wA, max_persp=1e-6):
@@ -1099,11 +1017,6 @@ def build_global_transforms(images_rgb: List[np.ndarray],
 
     return H_to_ref
 
-
-# ============================================================
-# Fast hole filling (vectorized)
-# ============================================================
-
 def fill_small_holes_fast(pano: np.ndarray, wsum: np.ndarray,
                           hole_thr: float = 1e-3,
                           iters: int = 8,
@@ -1147,11 +1060,6 @@ def fill_small_holes_fast(pano: np.ndarray, wsum: np.ndarray,
         mask[fill] = True
 
     return clamp01(out)
-
-
-# ============================================================
-# Stitching (tile warp + work_scale)
-# ============================================================
 
 def stitch_images(images_rgb: List[np.ndarray],
                   max_canvas_side: int = 9000,
@@ -1296,11 +1204,6 @@ def stitch_images(images_rgb: List[np.ndarray],
             pano = pano[y0:y1 + 1, x0:x1 + 1, :]
 
     return pano
-
-
-# ============================================================
-# CLI
-# ============================================================
 
 def main():
     parser = argparse.ArgumentParser()
