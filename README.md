@@ -36,6 +36,7 @@ cd panorama_project
 
 python -m venv venv
 venv\Scripts\activate
+pip install -r requirements.txt
 ```
 예시 실행 명령어(가상 환경 venv 위에서 실행할 것.)
 ```bash
